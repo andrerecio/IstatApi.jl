@@ -33,6 +33,18 @@ function with_fast_limit(f; interval = 0.0, per_minute = 10_000)
     end
 end
 
+# Drop refreshed catalogue copies (files + in-memory cache) so later testsets
+# see the shipped snapshot again.
+function reset_catalogue!()
+    for f in readdir(cache_dir())
+        if startswith(f, "dataflows_") || startswith(f, "datastructures_")
+            rm(joinpath(cache_dir(), f); force = true)
+        end
+    end
+    empty!(IstatApi._CATALOGUE_CACHE)
+    return
+end
+
 # responses :: url => (status, headers, body); every requested URL is pushed
 # onto `log`.
 function recording_transport(responses::AbstractDict; log::Vector{String} = String[])

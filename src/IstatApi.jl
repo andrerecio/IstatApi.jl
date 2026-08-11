@@ -35,6 +35,8 @@ export cache_dir, set_cache_dir!, clear_cache!, cache_index
 export set_rate_limit!, rate_limit, with_budget, requests_used, clear_ban!
 # Keys and parsing
 export sdmx_key, sdmx_url, read_sdmx_csv
+# Discovery (zero requests, shipped snapshot)
+export get_dataflows, get_dataflow, search_dataflow, get_dimensions
 
 include("errors.jl")
 include("config.jl")
