@@ -42,7 +42,7 @@ export DataStructure, get_datastructure, get_codelist, available, nobs
 # Data and reshaping
 export get_data, to_wide, to_timearray
 # Curated shortcuts
-export industrial_production
+export industrial_production, gdp, consumer_prices, unemployment
 
 include("errors.jl")
 include("config.jl")
