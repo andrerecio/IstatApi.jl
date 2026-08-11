@@ -18,15 +18,20 @@ added after `TIME_PERIOD`: `period::Date`, the period's start (see
 [`IstatApi.parse_period`](@ref)), and `freq::String`, its frequency letter.
 """
 function read_sdmx_csv(source)
-    df = CSV.read(source, DataFrame; types = String, missingstring = "")
-    "TIME_PERIOD" in names(df) ||
+    df = CSV.read(source, DataFrame; types = String, missingstring = "",
+                  pool = false)
+    # server-side labels (`;labels=both`) relabel the headers too:
+    # "TIME_PERIOD" becomes "TIME_PERIOD: Time"
+    idx = findfirst(n -> n == "TIME_PERIOD" || startswith(n, "TIME_PERIOD:"),
+                    names(df))
+    idx === nothing &&
         throw(ArgumentError("not an SDMX-CSV data message: no TIME_PERIOD column"))
-    any(ismissing, df.TIME_PERIOD) &&
+    tp = df[!, idx]
+    any(ismissing, tp) &&
         throw(ArgumentError("malformed SDMX-CSV: empty TIME_PERIOD values"))
-    idx = findfirst(==("TIME_PERIOD"), names(df))
     insertcols!(df, idx + 1,
-        :period => parse_period.(df.TIME_PERIOD),
-        :freq => period_frequency.(df.TIME_PERIOD))
+        :period => parse_period.(tp),
+        :freq => period_frequency.(tp))
     if "OBS_VALUE" in names(df)
         df.OBS_VALUE = Union{Float64,Missing}[
             v === missing ? missing : parse(Float64, v) for v in df.OBS_VALUE]

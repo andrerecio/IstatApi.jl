@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-**Pre-implementation.** This repo will hold `IstatApi.jl` (module `IstatApi`, Julia ≥ 1.10): a public, registrable Julia client for ISTAT's SDMX 2.1 REST API. The full implementation guide lives in `IstatApi.jl-PLAN.md` — **local-only and gitignored**; read it first if it exists. Structural model: [`gragusa/FredApi.jl`](https://github.com/gragusa/FredApi.jl) (small files grouped by concern, flat API of plain functions — but note it has no tests and known bugs; copy the spirit, not the code). Ergonomics model: [`Attol8/istatapi`](https://github.com/Attol8/istatapi) (discover → inspect → filter → retrieve).
+**Core implemented, pre-registration.** `IstatApi.jl` (module `IstatApi`, Julia ≥ 1.10) is a public, registrable Julia client for ISTAT's SDMX 2.1 REST API. The v0.1.0 surface (transport/limiter/cache, discovery, structure, data, reshaping, the IPI shortcut) is implemented with a fully offline test suite; remaining before registration: the `gdp`/`consumer_prices`/`unemployment` shortcuts (need live code verification), docs pages, CHANGELOG. The full design document lives in `IstatApi.jl-PLAN.md` — **local-only and gitignored**; read it first if it exists. Structural model: [`gragusa/FredApi.jl`](https://github.com/gragusa/FredApi.jl) (small files grouped by concern, flat API of plain functions — but note it has no tests and known bugs; copy the spirit, not the code). Ergonomics model: [`Attol8/istatapi`](https://github.com/Attol8/istatapi) (discover → inspect → filter → retrieve).
 
 ## Commands
 

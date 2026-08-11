@@ -39,6 +39,10 @@ export sdmx_key, sdmx_url, read_sdmx_csv
 export get_dataflows, get_dataflow, search_dataflow, get_dimensions
 # Structure and availability
 export DataStructure, get_datastructure, get_codelist, available, nobs
+# Data and reshaping
+export get_data, to_wide, to_timearray
+# Curated shortcuts
+export industrial_production
 
 include("errors.jl")
 include("config.jl")

@@ -1,6 +1,6 @@
 # Shipped catalogue snapshots
 
-This directory will hold trimmed snapshots of ISTAT's structural catalogue:
+Trimmed snapshots of ISTAT's structural catalogue:
 
 - `dataflows_IT1.csv` — id, agency, version, name_en, name_it, dsd,
   last_update, metadata_url for all dataflows (from `/dataflow/IT1`).

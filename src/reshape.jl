@@ -1,8 +1,50 @@
-# Reshaping: to_wide and the TimeSeries.jl extension stub.
-#
-# `to_wide(df; by = :auto)` widens on every dimension that varies, joining
-# codes with `.` in column names. Both reshapers error explicitly if more than
-# one `freq` is present — a silently ragged result is a bug factory.
-# `to_timearray` gets an erroring stub here ("requires TimeSeries.jl — run
-# `using TimeSeries` first"); the real method lives in
-# ext/IstatApiTimeSeriesExt.jl so DataFrame users never pay for it.
+# Reshaping get_data results.
+
+"""
+    to_wide(df; by = :auto) -> DataFrame
+
+Reshape a [`get_data`](@ref) result to one `period` column plus one column per
+series, named by `.`-joining the codes of every dimension that varies (`by`
+selects the dimension columns explicitly). Errors if more than one `freq` is
+present — a silently ragged wide table is a bug factory; filter to one
+frequency first.
+"""
+function to_wide(df::AbstractDataFrame; by = :auto)
+    issubset(["TIME_PERIOD", "period", "freq", "OBS_VALUE"], names(df)) ||
+        throw(ArgumentError("expected a get_data result (TIME_PERIOD/period/freq/OBS_VALUE columns)"))
+    freqs = unique(df.freq)
+    length(freqs) <= 1 ||
+        throw(ArgumentError("more than one frequency present ($(join(freqs, ", "))) " *
+                            "— reshaping would silently misalign periods; filter to one freq first"))
+    tp = findfirst(==("TIME_PERIOD"), names(df))
+    dimcols = if by === :auto
+        # dimension columns sit between DATAFLOW and TIME_PERIOD
+        filter(c -> !endswith(c, "_label"), names(df)[2:tp-1])
+    else
+        String.(collect(by))
+    end
+    foreach(c -> c in names(df) ||
+                 throw(ArgumentError("unknown dimension column $c")), dimcols)
+    varying = filter(c -> length(unique(df[!, c])) > 1, dimcols)
+    series = if isempty(varying)
+        constname = isempty(dimcols) ? "OBS_VALUE" :
+                    join((df[1, c] for c in dimcols), '.')
+        fill(constname, nrow(df))
+    else
+        [join((r[c] for c in varying), '.') for r in eachrow(df)]
+    end
+    long = DataFrame(period = df.period, series = series, value = df.OBS_VALUE)
+    wide = unstack(long, :period, :series, :value)
+    sort!(wide, :period)
+    return wide
+end
+
+"""
+    to_timearray(df; by = :auto) -> TimeArray
+
+[`to_wide`](@ref), then a `TimeArray` indexed by `period`. Requires
+TimeSeries.jl (a package extension): run `using TimeSeries` first. Same
+single-frequency rule as `to_wide`.
+"""
+to_timearray(df; by = :auto) =
+    error("to_timearray requires TimeSeries.jl — run `using TimeSeries` first")
