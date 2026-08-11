@@ -29,6 +29,10 @@ export IstatError, OfflineError, BudgetExhaustedError, RateLimitError,
        BannedError, NoDataError, RequestFailed
 # Offline mode
 export offline!, online!, isoffline
+# Cache
+export cache_dir, set_cache_dir!, clear_cache!, cache_index
+# Rate limiting and budget
+export set_rate_limit!, rate_limit, with_budget, requests_used, clear_ban!
 
 include("errors.jl")
 include("config.jl")
