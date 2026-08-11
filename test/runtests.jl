@@ -8,6 +8,7 @@ ENV["ISTATAPI_CACHE_DIR"] = mktempdir()
 using IstatApi
 using Test
 using Dates
+using DataFrames
 using HTTP
 
 include("helpers.jl")
@@ -15,6 +16,9 @@ include("helpers.jl")
 @testset "IstatApi.jl" begin
     include("test_offline.jl")
     include("test_errors.jl")
+    include("test_periods.jl")
+    include("test_keys.jl")
+    include("test_sdmxcsv.jl")
     include("test_cache.jl")
     include("test_ratelimit.jl")
     include("test_transport.jl")

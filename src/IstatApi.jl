@@ -33,6 +33,8 @@ export offline!, online!, isoffline
 export cache_dir, set_cache_dir!, clear_cache!, cache_index
 # Rate limiting and budget
 export set_rate_limit!, rate_limit, with_budget, requests_used, clear_ban!
+# Keys and parsing
+export sdmx_key, sdmx_url, read_sdmx_csv
 
 include("errors.jl")
 include("config.jl")
