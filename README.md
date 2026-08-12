@@ -46,6 +46,13 @@ becomes `20`), absent values are `missing`, and each row carries
 `period::Date` (period start) plus `freq` alongside the verbatim
 `TIME_PERIOD`. `using TimeSeries` enables `to_timearray`.
 
+For a commented start-to-finish walkthrough (discover → inspect → filter →
+retrieve), run [`examples/basic_usage.jl`](examples/basic_usage.jl):
+
+```bash
+julia --project examples/basic_usage.jl
+```
+
 ## When to use something else
 
 - [DBnomics.jl](https://github.com/s915/DBnomics.jl) mirrors ISTAT (among
