@@ -1,5 +1,11 @@
 # IstatApi.jl
 
+[![CI](https://github.com/andrerecio/IstatApi.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/andrerecio/IstatApi.jl/actions/workflows/CI.yml)
+[![Coverage](https://codecov.io/gh/andrerecio/IstatApi.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/andrerecio/IstatApi.jl)
+[![Docs: dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://andrerecio.github.io/IstatApi.jl/dev/)
+[![Aqua QA](https://raw.githubusercontent.com/JuliaTesting/Aqua.jl/master/badge.svg)](https://github.com/JuliaTesting/Aqua.jl)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+
 A Julia client for [ISTAT](https://www.istat.it)'s SDMX REST API — the
 official data service of the Italian National Institute of Statistics.
 
