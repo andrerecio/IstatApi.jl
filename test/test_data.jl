@@ -101,12 +101,63 @@
                     @test "period" in names(df) && "freq" in names(df)
                     @test df.period[1] == Date(2026, 1, 1)
                     @test df.OBS_VALUE[1] == 93.5
-                    # server labels arrive as "CODE: label" values
-                    @test any(occursin("monthly", c) for c in df[1, :] if c isa AbstractString)
+                    # "CODE: label" headers and cells are split back into the
+                    # plain schema plus <DIM>_label columns — same shape as
+                    # labels = true, so reshapers work on either
+                    @test df.FREQ == fill("M", nrow(df))
+                    @test df.FREQ_label == fill("monthly", nrow(df))
+                    @test df.ECON_ACTIVITY_NACE_2007[1] == "0020"
+                    @test occursin("TOTAL INDUSTRY", df.ECON_ACTIVITY_NACE_2007_label[1])
+                    @test names(df)[1:3] == ["DATAFLOW", "FREQ", "FREQ_label"]
+                    @test !("TIME_PERIOD_label" in names(df))     # no labelled cells
+                    wide = to_wide(df)
+                    @test names(wide) == ["period", "M.IT.IND_PROD_21.Y.0020"]
+                    @test wide[1, 2] == 93.5
                 end
             end
         end
         @test_throws ArgumentError get_data("115_333", "."; labels = :banana)
+    end
+
+    @testset "last_n / first_n reach the URL and skip the size guard" begin
+        url = sdmx_url("115_333", sdmx_key("115_333"); last_n = 12)
+        log = String[]
+        with_online() do
+            with_transport(recording_transport(Dict(url => (200, [], IPI_CSV)); log)) do
+                with_fast_limit() do
+                    # a fully wildcarded key, but bounded → no nobs request first
+                    df = get_data("115_333"; last_n = 12, cache = false)
+                    @test log == [url]
+                    @test nrow(df) == 3180
+                end
+            end
+        end
+    end
+
+    @testset "trim = true drops observations after `to` (endPeriod over-returns)" begin
+        url = sdmx_url("115_333", "M.IT.IND_PROD_21.Y.0020"; to = "2026-03")
+        url_q = sdmx_url("115_333", "M.IT.IND_PROD_21.Y.0020"; to = "2026-Q1")
+        log = String[]
+        with_online() do
+            # the fixture runs to 2026-06, standing in for the server's extra year
+            with_transport(recording_transport(Dict(url => (200, [], IPI_CSV),
+                                                    url_q => (200, [], IPI_CSV)); log)) do
+                with_fast_limit() do
+                    df = get_data("115_333", "M.IT.IND_PROD_21.Y.0020";
+                                  to = "2026-03", cache = false)
+                    @test log == [url]
+                    @test maximum(df.period) == Date(2026, 3, 1)
+                    @test nrow(df) < 3180
+                    raw = get_data("115_333", "M.IT.IND_PROD_21.Y.0020";
+                                   to = "2026-03", trim = false, cache = false)
+                    @test maximum(raw.period) == Date(2026, 6, 1)
+                    # a quarterly bound keeps the whole quarter
+                    q = get_data("115_333", "M.IT.IND_PROD_21.Y.0020";
+                                 to = "2026-Q1", trim = true, cache = false)
+                    @test maximum(q.period) == Date(2026, 3, 1)
+                end
+            end
+        end
     end
 
     @testset "fully wildcarded queries are sized first and refused" begin
@@ -122,6 +173,12 @@
                 with_fast_limit() do
                     # 187,956 > max_obs → refused after the 3 KB sizing request
                     @test_throws ArgumentError get_data("115_333")
+                    @test log == [nobs_url]
+                    # the ready-made-key form is guarded too (sizing is cached)
+                    @test_throws ArgumentError get_data("115_333", wildkey)
+                    @test log == [nobs_url]
+                    @test nobs("115_333", wildkey) == 187_956
+                    @test nobs("115_333") == 187_956
                     @test log == [nobs_url]
                     # explicit override fetches
                     df = get_data("115_333"; max_obs = nothing, cache = false)

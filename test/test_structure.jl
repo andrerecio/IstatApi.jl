@@ -36,6 +36,19 @@
                         shown = sprint(show, MIME("text/plain"), ds)
                         @test occursin("FREQ.REF_AREA.DATA_TYPE.ADJUSTMENT.ECON_ACTIVITY_NACE_2007", shown)
                         @test occursin("CL_ATECO_2007", shown)
+                        @test !occursin("large", shown)   # trimmed fixture, no big codelist
+
+                        # a huge codelist gets a hint pointing at `available`
+                        big = DataStructure("IT1", "BIG", "1.0", ["FREQ", "TERR"],
+                                            Dict("TERR" => "CL_TERR"),
+                                            Dict("CL_TERR" => DataFrame(
+                                                code = string.(1:1200), name_en = fill("", 1200),
+                                                name_it = fill("", 1200), parent = fill("", 1200))),
+                                            String["OBS_STATUS"])
+                        bigshown = sprint(show, MIME("text/plain"), big)
+                        @test occursin("CL_TERR (1200 codes) — large; available(flow, \"TERR\")", bigshown)
+                        @test occursin("key template: FREQ.TERR", bigshown)
+                        @test occursin("attributes: OBS_STATUS", bigshown)
 
                         # second call: zero transport calls (memoised)
                         ds2 = get_datastructure("115_333")
@@ -124,5 +137,55 @@
         @test isoffline()
         @test_throws OfflineError get_datastructure("115_333")
         @test get_dimensions("115_333") isa Vector{String}   # snapshot: still fine
+    end
+
+    @testset "nobs without an obs_count annotation is a RequestFailed, not a guess" begin
+        url = string(IstatApi.ENDPOINT[], "/availableconstraint/115_333/..../all/FREQ")
+        no_count = "<structure:ContentConstraint></structure:ContentConstraint>"
+        with_online() do
+            with_transport(recording_transport(Dict(url => (200, [], no_count)))) do
+                with_fast_limit() do
+                    @test_throws RequestFailed nobs("115_333")
+                end
+            end
+        end
+        clear_cache!()
+    end
+
+    @testset "refresh = true on structures: one live request each, then shadowing" begin
+        cat_url = string(IstatApi.ENDPOINT[], "/datastructure/IT1")
+        cat_body = read(joinpath(@__DIR__, "fixtures", "datastructures_IT1_slice.json"), String)
+        log = String[]
+        try
+            with_online() do
+                with_transport(recording_transport(Dict(
+                        cat_url => (200, [], cat_body),
+                        CHILDREN_URL => (200, [], children_body)); log)) do
+                    with_fast_limit() do
+                        dims = get_dimensions("115_333"; refresh = true)
+                        @test dims == ["FREQ", "REF_AREA", "DATA_TYPE", "ADJUSTMENT",
+                                       "ECON_ACTIVITY_NACE_2007"]
+                        @test log == [cat_url]
+                        @test isfile(joinpath(cache_dir(), "datastructures_IT1.csv"))
+                        # the refreshed copy is served afterwards, zero requests
+                        get_dimensions("115_333")
+                        @test log == [cat_url]
+
+                        # get_datastructure(refresh = true) bypasses memo and cache
+                        ds1 = get_datastructure("115_333")
+                        @test log == [cat_url, CHILDREN_URL]
+                        ds2 = get_datastructure("115_333"; refresh = true)
+                        @test log == [cat_url, CHILDREN_URL, CHILDREN_URL]
+                        @test ds2.dimensions == ds1.dimensions
+                        @test get_datastructure("115_333") === ds2   # re-memoised
+                        @test length(log) == 3
+                    end
+                end
+            end
+        finally
+            reset_catalogue!()
+            empty!(IstatApi._DSD_CACHE)
+            clear_cache!()
+        end
     end
 end

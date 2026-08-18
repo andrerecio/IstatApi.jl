@@ -56,4 +56,26 @@
         @test_throws ArgumentError search_dataflow("")
         @test_throws ArgumentError search_dataflow("x"; lang = :de)
     end
+
+    @testset "order is a total order: shuffled catalogue, same result" begin
+        # the shipped snapshot is loaded by now
+        name = "dataflows_IT1.csv"
+        original = IstatApi._catalogue(name)
+        expected = search_dataflow("production")
+        try
+            for seed in (1, 2, 3)
+                perm = collect(1:nrow(original))
+                # a deterministic, dependency-free shuffle
+                for i in length(perm):-1:2
+                    j = mod1(i * 7919 + seed * 104729, i)
+                    perm[i], perm[j] = perm[j], perm[i]
+                end
+                IstatApi._CATALOGUE_CACHE[name] = original[perm, :]
+                @test search_dataflow("production").id == expected.id
+                @test search_dataflow("production").score == expected.score
+            end
+        finally
+            IstatApi._CATALOGUE_CACHE[name] = original
+        end
+    end
 end

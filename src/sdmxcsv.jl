@@ -16,14 +16,17 @@ not the number 20) — except `OBS_VALUE`, which becomes
 `Union{Float64, Missing}` with `missing` for empty values. Two columns are
 added after `TIME_PERIOD`: `period::Date`, the period's start (see
 [`IstatApi.parse_period`](@ref)), and `freq::String`, its frequency letter.
+
+A message with server-side labels (`;labels=both`, headers and cells in
+`"CODE: label"` form) is normalised to the plain schema: the header becomes
+`CODE`, cells keep only the code, and the label part lands in a `CODE_label`
+column right after it — identical to what `labels = true` produces.
 """
 function read_sdmx_csv(source)
     df = CSV.read(source, DataFrame; types = String, missingstring = "",
                   pool = false)
-    # server-side labels (`;labels=both`) relabel the headers too:
-    # "TIME_PERIOD" becomes "TIME_PERIOD: Time"
-    idx = findfirst(n -> n == "TIME_PERIOD" || startswith(n, "TIME_PERIOD:"),
-                    names(df))
+    _split_server_labels!(df)
+    idx = findfirst(==("TIME_PERIOD"), names(df))
     idx === nothing &&
         throw(ArgumentError("not an SDMX-CSV data message: no TIME_PERIOD column"))
     tp = df[!, idx]
@@ -35,6 +38,43 @@ function read_sdmx_csv(source)
     if "OBS_VALUE" in names(df)
         df.OBS_VALUE = Union{Float64,Missing}[
             v === missing ? missing : parse(Float64, v) for v in df.OBS_VALUE]
+    end
+    return df
+end
+
+# `;labels=both` turns the header "FREQ" into "FREQ: Frequency" and the cell
+# "M" into "M: monthly". Undo that in place: rename the header, keep the code
+# in the column, and put the labels in a `FREQ_label` column right after it —
+# the same shape `_join_labels!` builds locally, so reshapers and user code
+# see one schema. Columns whose cells carry no label (TIME_PERIOD, DATAFLOW)
+# are only renamed.
+function _split_server_labels!(df::DataFrame)
+    for name in reverse(names(df))          # reverse keeps earlier indices valid
+        m = match(r"^([^:\s]+): .*$"s, name)
+        m === nothing && continue
+        code_col = String(m[1])
+        col = df[!, name]
+        codes = similar(col)
+        labels = fill("", length(col))
+        labelled = false
+        for (i, v) in enumerate(col)
+            if v === missing
+                codes[i] = missing
+                continue
+            end
+            j = findfirst(": ", v)
+            if j === nothing
+                codes[i] = v
+            else
+                codes[i] = String(v[1:prevind(v, first(j))])
+                labels[i] = String(v[nextind(v, last(j)):end])
+                labelled = true
+            end
+        end
+        idx = findfirst(==(name), names(df))
+        df[!, idx] = codes
+        rename!(df, name => code_col)
+        labelled && insertcols!(df, idx + 1, Symbol(code_col, :_label) => labels)
     end
     return df
 end

@@ -50,4 +50,23 @@
     @testset "malformed input" begin
         @test_throws ArgumentError read_sdmx_csv("a,b\n1,2\n")
     end
+
+    @testset "server labels (;labels=both) normalise to code + _label columns" begin
+        lab = read_sdmx_csv("""
+        DATAFLOW,FREQ: Frequency,REF_AREA: Territory,TIME_PERIOD: Time,OBS_VALUE,OBS_STATUS: Status,NOTE_DS: Dataset note
+        IT1:X(1.0),M: monthly,IT: Italy,2026-05,94.4,,"TD1: note, with: colons"
+        IT1:X(1.0),M: monthly,IT: Italy,2026-06,93.5,A: normal value,
+        """)
+        @test names(lab) == ["DATAFLOW", "FREQ", "FREQ_label", "REF_AREA", "REF_AREA_label",
+                             "TIME_PERIOD", "period", "freq", "OBS_VALUE",
+                             "OBS_STATUS", "OBS_STATUS_label", "NOTE_DS", "NOTE_DS_label"]
+        @test lab.FREQ == ["M", "M"] && lab.FREQ_label == ["monthly", "monthly"]
+        @test lab.REF_AREA_label == ["Italy", "Italy"]
+        @test lab.TIME_PERIOD == ["2026-05", "2026-06"]        # plain cells: renamed only
+        @test lab.OBS_STATUS[1] === missing && lab.OBS_STATUS[2] == "A"
+        @test lab.OBS_STATUS_label == ["", "normal value"]
+        # split on the first ": " only — labels may contain colons
+        @test lab.NOTE_DS[1] == "TD1" && lab.NOTE_DS_label[1] == "note, with: colons"
+        @test lab.freq == ["M", "M"]
+    end
 end

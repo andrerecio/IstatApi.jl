@@ -92,4 +92,27 @@
     @testset "unknown agency points at refresh" begin
         @test_throws ArgumentError get_dataflows(agency = "ESTAT")
     end
+
+    @testset "a stale shipped snapshot nudges once, a fresh one never" begin
+        dir = mktempdir()
+        csv = joinpath(dir, "dataflows_XX.csv")
+        write(csv, "id\n")
+        old = IstatApi._SNAPSHOT_WARNED[]
+        try
+            IstatApi._SNAPSHOT_WARNED[] = false
+            # no sidecar → silent
+            @test_logs IstatApi._warn_if_stale(csv)
+            # fresh sidecar → silent
+            write(csv * ".meta.toml", "snapshot_date = \"$(Dates.today())\"\n")
+            @test_logs IstatApi._warn_if_stale(csv)
+            @test !IstatApi._SNAPSHOT_WARNED[]
+            # 200-day-old sidecar → one @info, then never again
+            write(csv * ".meta.toml", "snapshot_date = \"$(Dates.today() - Dates.Day(200))\"\n")
+            @test_logs (:info, r"shipped catalogue snapshot is from") IstatApi._warn_if_stale(csv)
+            @test IstatApi._SNAPSHOT_WARNED[]
+            @test_logs IstatApi._warn_if_stale(csv)
+        finally
+            IstatApi._SNAPSHOT_WARNED[] = old
+        end
+    end
 end

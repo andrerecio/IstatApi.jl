@@ -54,20 +54,28 @@ function set_cache_dir!(path::AbstractString; persist::Bool = false)
 end
 
 """
-    clear_cache!(; older_than = nothing) -> Int
+    clear_cache!(; older_than = nothing, what = :all) -> Int
 
 Delete cached responses and their metadata sidecars, returning the number of
 files removed. The request log and the ban sentinel are never touched. With
 `older_than` a `Dates.Period`, only files modified longer ago are removed.
+`what` narrows the sweep: `:data` (data responses only), `:structure` (DSDs,
+codelists and availability responses), `:catalogue` (refreshed catalogue
+snapshots and `/dataflow` responses), or `:all`.
 """
-function clear_cache!(; older_than::Union{Nothing,Period} = nothing)
+function clear_cache!(; older_than::Union{Nothing,Period} = nothing,
+                      what::Symbol = :all)
+    what in (:all, :data, :structure, :catalogue) ||
+        throw(ArgumentError("what must be :all, :data, :structure or :catalogue, got :$what"))
     dir = cache_dir()
     cutoff = older_than === nothing ? nothing : now(UTC) - older_than
+    kinds = what === :all ? nothing : _cache_kinds(dir)
     removed = 0
     for name in readdir(dir)
         _is_internal(name) && continue
         path = joinpath(dir, name)
         isfile(path) || continue
+        kinds === nothing || get(kinds, name, :other) === what || continue
         if cutoff !== nothing
             Dates.unix2datetime(mtime(path)) < cutoff || continue
         end
@@ -75,6 +83,29 @@ function clear_cache!(; older_than::Union{Nothing,Period} = nothing)
         removed += 1
     end
     return removed
+end
+
+# Classify every cache file as :data / :structure / :catalogue / :other from
+# its sidecar's URL (responses) or its name (refreshed catalogue snapshots).
+function _cache_kinds(dir::AbstractString)
+    kinds = Dict{String,Symbol}()
+    for name in readdir(dir)
+        if endswith(name, ".meta.json")
+            url = try
+                String(get(JSON3.read(read(joinpath(dir, name), String)), :url, ""))
+            catch
+                ""
+            end
+            kind = occursin("/data/", url) ? :data :
+                   occursin(r"/(datastructure|codelist|availableconstraint)/", url) ? :structure :
+                   occursin("/dataflow/", url) ? :catalogue : :other
+            kinds[name] = kind
+            kinds[String(chopsuffix(name, ".meta.json"))] = kind
+        elseif occursin(r"^(dataflows|datastructures)_.*\.csv(\.meta\.toml)?$", name)
+            kinds[name] = :catalogue
+        end
+    end
+    return kinds
 end
 
 """

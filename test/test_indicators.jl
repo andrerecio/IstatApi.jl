@@ -39,6 +39,31 @@
         end
     end
 
+    @testset "extra dimension keywords constrain the edition lookup; options don't" begin
+        avail_xml = """
+        <structure:ContentConstraint>
+          <common:Annotation id="obs_count"><common:AnnotationTitle>1</common:AnnotationTitle></common:Annotation>
+          <common:KeyValue id="EDITION"><common:Value>2026M3</common:Value></common:KeyValue>
+        </structure:ContentConstraint>
+        """
+        # REF_AREA overridden by the caller must reach the availableconstraint key;
+        # lowercase options (cache, max_obs) must not be treated as dimensions
+        avail_url = string(IstatApi.ENDPOINT[],
+            "/availableconstraint/151_874/", "M.ITC.UNEM_R.Y.9.Y15-74.", "/all/EDITION")
+        data_url = sdmx_url("151_874", "M.ITC.UNEM_R.Y.9.Y15-74.2026M3")
+        log = String[]
+        with_online() do
+            with_transport(recording_transport(Dict(
+                    avail_url => (200, [], avail_xml),
+                    data_url => (200, [], IPI_CSV)); log)) do
+                with_fast_limit() do
+                    unemployment(REF_AREA = "ITC", cache = false, max_obs = nothing)
+                    @test log == [avail_url, data_url]
+                end
+            end
+        end
+    end
+
     @testset "pinned editions skip the resolution request" begin
         cases = [
             (() -> gdp(edition = "2026M5", cache = false),

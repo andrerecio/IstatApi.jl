@@ -77,26 +77,45 @@ function _flow_ref(flow::AbstractString; agency::AbstractString = "IT1")
 end
 
 """
-    sdmx_url(flow, key; from = nothing, to = nothing, agency = "IT1") -> String
+    sdmx_url(flow, key; from = nothing, to = nothing, last_n = nothing,
+             first_n = nothing, agency = "IT1") -> String
 
 The data URL for `flow` and `key`. `flow` may be a bare id (`"115_333"`), the
 explicit `"IT1,115_333,1.0"` form, or the `"IT1:115_333(1.0)"` form found in
 the `DATAFLOW` column of results. `from`/`to` become `startPeriod`/`endPeriod`
-(note: ISTAT's `endPeriod` is known to return up to one extra year — trim
-after parsing if the boundary matters).
+(note: ISTAT's `endPeriod` is known to return up to one extra year —
+[`get_data`](@ref) trims the excess by default). `last_n`/`first_n` become
+`lastNObservations`/`firstNObservations` — counted **per series**, so a
+`+`-joined key still returns `last_n` points for each — the cheapest way to
+peek at a flow.
 
 # Examples
 ```jldoctest
 julia> sdmx_url("115_333", "M...Y.", from = "2020")
 "https://esploradati.istat.it/SDMXWS/rest/data/IT1,115_333/M...Y.?startPeriod=2020"
+
+julia> sdmx_url("115_333", "M...Y.", last_n = 12)
+"https://esploradati.istat.it/SDMXWS/rest/data/IT1,115_333/M...Y.?lastNObservations=12"
 ```
 """
 function sdmx_url(flow::AbstractString, key::AbstractString;
-                  from = nothing, to = nothing, agency::AbstractString = "IT1")
+                  from = nothing, to = nothing,
+                  last_n::Union{Nothing,Integer} = nothing,
+                  first_n::Union{Nothing,Integer} = nothing,
+                  agency::AbstractString = "IT1")
     url = string(ENDPOINT[], "/data/", _flow_ref(flow; agency), "/", key)
     params = String[]
     from === nothing || push!(params, "startPeriod=" * string(from))
     to === nothing || push!(params, "endPeriod=" * string(to))
+    for (name, n) in (("lastNObservations", last_n), ("firstNObservations", first_n))
+        n === nothing && continue
+        n > 0 || throw(ArgumentError("$name must be positive, got $n"))
+        push!(params, string(name, '=', n))
+    end
     isempty(params) || (url *= "?" * join(params, "&"))
     return url
 end
+
+# True when every position of an SDMX key is a wildcard — the shape that can
+# select a whole flow (HTTP 413 territory) and is therefore sized first.
+_is_fully_wildcarded(key::AbstractString) = all(isempty, split(key, '.'))

@@ -48,6 +48,18 @@
               "https://esploradati.istat.it/SDMXWS/rest/data/IT1,115_333/M...Y.?startPeriod=2020&endPeriod=2024-12"
         @test sdmx_url("IT1:115_333(1.0)", ".....", from = 2020) ==
               "https://esploradati.istat.it/SDMXWS/rest/data/IT1,115_333,1.0/.....?startPeriod=2020"
+        # lastNObservations / firstNObservations, after the period bounds
+        @test sdmx_url("115_333", "M...Y.", last_n = 12) ==
+              "https://esploradati.istat.it/SDMXWS/rest/data/IT1,115_333/M...Y.?lastNObservations=12"
+        @test sdmx_url("115_333", "M...Y.", from = "2020", first_n = 3) ==
+              "https://esploradati.istat.it/SDMXWS/rest/data/IT1,115_333/M...Y.?startPeriod=2020&firstNObservations=3"
+        @test_throws ArgumentError sdmx_url("115_333", "M...Y.", last_n = 0)
+        @test_throws ArgumentError sdmx_url("115_333", "M...Y.", first_n = -1)
+        # wildcard detection drives the size guard in get_data
+        @test IstatApi._is_fully_wildcarded("....")
+        @test IstatApi._is_fully_wildcarded(".")
+        @test !IstatApi._is_fully_wildcarded("M...Y.")
+        @test !IstatApi._is_fully_wildcarded("M.IT")
         # a swapped endpoint flows through
         IstatApi.set_endpoint!("https://example.invalid/rest")
         try

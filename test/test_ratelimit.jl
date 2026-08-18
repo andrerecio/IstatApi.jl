@@ -70,4 +70,36 @@
             end
         end
     end
+
+    @testset "the limiter is cross-process: another Julia's stamp is honoured" begin
+        # A child process (same cache dir, inherited env) records one request
+        # stamp; this process must then wait the full interval measured from
+        # the child's stamp — the ban is per IP, so budgets are shared.
+        interval = 2.0
+        logfile = joinpath(cache_dir(), "requests.log")
+        rm(logfile; force = true)
+        script = """
+            using IstatApi
+            set_rate_limit!(interval = $interval, per_minute = 10_000)
+            IstatApi._throttle!()
+            println(time())
+        """
+        cmd = `$(Base.julia_cmd()) --project=$(Base.active_project()) --startup-file=no -e $script`
+        child_out = read(cmd, String)
+        child_stamp = parse(Float64, strip(last(split(strip(child_out), '\n'))))
+        stamps = IstatApi._read_stamps(logfile)
+        @test length(stamps) == 1
+        @test abs(stamps[1] - child_stamp) < 1.0
+
+        set_rate_limit!(interval = interval, per_minute = 10_000)
+        try
+            IstatApi._throttle!()
+        finally
+            set_rate_limit!()
+        end
+        stamps = IstatApi._read_stamps(logfile)
+        @test length(stamps) == 2
+        @test stamps[2] - stamps[1] >= interval - 0.05
+        rm(logfile; force = true)
+    end
 end

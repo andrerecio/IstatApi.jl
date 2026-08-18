@@ -29,14 +29,19 @@ function _edition_key(s::AbstractString)
 end
 
 # Resolve edition = :latest to the newest vintage that has data under the
-# given key — one ~3 KB availableconstraint request (cached thereafter).
+# given key — one ~3 KB availableconstraint request (cached thereafter). Only
+# uppercase keywords (dimensions) take part; lowercase get_data options are
+# ignored here.
 function _resolve_edition(flow, edition; kwargs...)
     edition === :latest || return String(edition)
-    codes = available(flow, "EDITION"; kwargs...).code
+    dims = (; (k => v for (k, v) in kwargs if _is_dimension_kw(k))...)
+    codes = available(flow, "EDITION"; dims...).code
     isempty(codes) &&
         throw(NoDataError("no EDITION has data for this $flow selection"))
     return codes[argmax(_edition_key.(codes))]
 end
+
+_is_dimension_kw(k::Symbol) = (s = String(k); s == uppercase(s))
 
 """
     gdp(; valuation = "L_2020", adjustment = "Y", edition = :latest,
@@ -53,7 +58,7 @@ function gdp(; valuation = "L_2020", adjustment = "Y", edition = :latest,
              from = nothing, to = nothing, kwargs...)
     fixed = (FREQ = "Q", REF_AREA = "IT", DATA_TYPE_AGGR = "B1GQ_B_W2_S1",
              VALUATION = String(valuation), ADJUSTMENT = String(adjustment))
-    ed = _resolve_edition("163_156", edition; fixed...)
+    ed = _resolve_edition("163_156", edition; fixed..., kwargs...)
     return get_data("163_156"; fixed..., EDITION = ed, from, to, kwargs...)
 end
 
@@ -91,6 +96,6 @@ function unemployment(; age = "Y15-74", sex = "9", adjustment = "Y",
     fixed = (FREQ = "M", REF_AREA = "IT", DATA_TYPE = "UNEM_R",
              ADJUSTMENT = String(adjustment), SEX = String(sex),
              AGE = String(age))
-    ed = _resolve_edition("151_874", edition; fixed...)
+    ed = _resolve_edition("151_874", edition; fixed..., kwargs...)
     return get_data("151_874"; fixed..., EDITION = ed, from, to, kwargs...)
 end

@@ -108,7 +108,8 @@ function Base.show(io::IO, ::MIME"text/plain", ds::DataStructure)
     for (i, d) in enumerate(ds.dimensions)
         cl = get(ds.codelist_of, d, "")
         n = haskey(ds.codelists, cl) ? nrow(ds.codelists[cl]) : 0
-        println(io, "  ", lpad(i, 2), ". ", rpad(d, 26), " ", cl, " (", n, " codes)")
+        hint = n >= 1000 ? " — large; available(flow, \"$d\") lists the codes with data" : ""
+        println(io, "  ", lpad(i, 2), ". ", rpad(d, 26), " ", cl, " (", n, " codes)", hint)
     end
     print(io, "  attributes: ", join(ds.attributes, ", "))
 end
@@ -229,6 +230,10 @@ end
 function _availableconstraint(flow, dimension; agency, kwargs...)
     dims = get_dimensions(flow; agency)
     key = sdmx_key(dims; kwargs...)
+    return _availableconstraint(flow, key, dimension; agency)
+end
+
+function _availableconstraint(flow, key::AbstractString, dimension; agency)
     id = get_dataflow(flow; agency).id
     url = string(ENDPOINT[], "/availableconstraint/", id, "/", key, "/all/", dimension)
     return _parse_available(_fetch(url; accept = "application/xml"))
@@ -258,19 +263,26 @@ end
 
 """
     nobs(flow; agency = "IT1", DIMS...) -> Int
+    nobs(flow, key::AbstractString; agency = "IT1") -> Int
 
 How many observations the key selected by the uppercase dimension keywords
-would return — **before** paying for the data request. Sizes a query for one
-~3 KB request; [`get_data`](@ref) refuses oversized wildcard queries, and this
-is how you check first.
+(or the ready-made `key`) would return — **before** paying for the data
+request. Sizes a query for one ~3 KB request; [`get_data`](@ref) refuses
+oversized wildcard queries, and this is how you check first.
 
 ```julia
 nobs("115_333"; FREQ = "M", ADJUSTMENT = "Y")
+nobs("115_333", "M...Y.")
 ```
 """
 function nobs(flow::AbstractString; agency::AbstractString = "IT1", kwargs...)
     dims = get_dimensions(flow; agency)
-    obs, _ = _availableconstraint(flow, dims[1]; agency, kwargs...)
+    return nobs(flow, sdmx_key(dims; kwargs...); agency)
+end
+
+function nobs(flow::AbstractString, key::AbstractString; agency::AbstractString = "IT1")
+    dims = get_dimensions(flow; agency)
+    obs, _ = _availableconstraint(flow, key, dims[1]; agency)
     obs === nothing &&
         throw(RequestFailed(200, "availableconstraint for $flow returned no obs_count"))
     return obs

@@ -8,6 +8,25 @@ series, named by `.`-joining the codes of every dimension that varies (`by`
 selects the dimension columns explicitly). Errors if more than one `freq` is
 present — a silently ragged wide table is a bug factory; filter to one
 frequency first.
+
+# Examples
+```jldoctest
+julia> df = read_sdmx_csv(\"\"\"
+       DATAFLOW,FREQ,REF_AREA,TIME_PERIOD,OBS_VALUE
+       IT1:X(1.0),M,IT,2026-01,1.0
+       IT1:X(1.0),M,IT,2026-02,2.0
+       IT1:X(1.0),M,ITC,2026-01,3.0
+       IT1:X(1.0),M,ITC,2026-02,
+       \"\"\");
+
+julia> to_wide(df)
+2×3 DataFrame
+ Row │ period      IT        ITC
+     │ Date        Float64?  Float64?
+─────┼─────────────────────────────────
+   1 │ 2026-01-01       1.0        3.0
+   2 │ 2026-02-01       2.0  missing
+```
 """
 function to_wide(df::AbstractDataFrame; by = :auto)
     issubset(["TIME_PERIOD", "period", "freq", "OBS_VALUE"], names(df)) ||
