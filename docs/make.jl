@@ -16,7 +16,9 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Getting started" => "getting_started.md",
+        "The catalogue" => "catalogue.md",
         "SDMX keys" => "keys.md",
+        "Retrieving data" => "data.md",
         "Rate limits and cache" => "rate_limits.md",
         "API reference" => "api.md",
     ],

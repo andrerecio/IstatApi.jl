@@ -13,9 +13,16 @@ Initial release.
   `get_dimensions`, `sdmx_key`, `sdmx_url`.
 - Structure: `get_datastructure` (memoised, shows the key template),
   `get_codelist`, and `available`/`nobs` over `/availableconstraint`.
+- Cache control: `cache_index`, `clear_cache!(; older_than, what)` with
+  `what ∈ (:all, :data, :structure, :catalogue)`.
 - Data: `get_data` returning long/tidy `DataFrame`s with `period::Date`
-  (period start) and `freq`; local label joining (`labels = true`);
-  `read_sdmx_csv`; `to_wide`; `to_timearray` via a TimeSeries.jl extension.
+  (period start) and `freq`; `from`/`to` with local trimming of ISTAT's
+  over-returned `endPeriod` (`trim = true`); `last_n`/`first_n`
+  (`lastNObservations`/`firstNObservations`); a `nobs` size guard on fully
+  wildcarded keys (`max_obs`); labels either joined locally
+  (`labels = true`) or requested from the server (`labels = :server`), both
+  yielding the same `<DIM>_label` schema; `read_sdmx_csv`; `to_wide`;
+  `to_timearray` via a TimeSeries.jl extension.
 - Safety under ISTAT's 5 requests/minute limit: persistent response cache,
   cross-process rate limiter, persisted ban sentinel, request budgets
   (`with_budget`), offline mode.

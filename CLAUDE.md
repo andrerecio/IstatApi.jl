@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project status
 
-**Feature-complete for v0.1.0, pre-registration.** `IstatApi.jl` (module `IstatApi`, Julia ≥ 1.10) is a public, registrable Julia client for ISTAT's SDMX 2.1 REST API. The full v0.1.0 surface is implemented with a fully offline test suite, docs pages, CHANGELOG, and all four shortcuts live-verified (2026-08). Remaining: push → CI green on all six matrix cells, `DOCUMENTER_KEY` setup, `@JuliaRegistrator register`. Shortcut curation note: `consumer_prices` uses **167_745** (base 2025=100, data from 2026) because 167_744 (base 2015) ended at 2025-12; `gdp`/`unemployment` have a vintage `EDITION` dimension resolved dynamically via `edition = :latest`. The full design document lives in `IstatApi.jl-PLAN.md` — **local-only and gitignored**; read it first if it exists. Structural model: [`gragusa/FredApi.jl`](https://github.com/gragusa/FredApi.jl) (small files grouped by concern, flat API of plain functions — but note it has no tests and known bugs; copy the spirit, not the code). Ergonomics model: [`Attol8/istatapi`](https://github.com/Attol8/istatapi) (discover → inspect → filter → retrieve).
+**Feature-complete for v0.1.0, pre-registration.** `IstatApi.jl` (module `IstatApi`, Julia ≥ 1.10) is a public, registrable Julia client for ISTAT's SDMX 2.1 REST API. The full v0.1.0 surface is implemented with a fully offline test suite, docs pages, CHANGELOG, and all four shortcuts live-verified (2026-08). CI is green on all six matrix cells. Remaining (GitHub-side): enable Pages for `gh-pages`, allow Actions to create PRs (CompatHelper 403), add `DOCUMENTER_KEY`, install JuliaRegistrator, then `@JuliaRegistrator register`. Keep `HTTP = "1"` for 0.1.0 — HTTP.jl 2.x is a breaking major to evaluate separately (`retry = false` must survive). Shortcut curation note: `consumer_prices` uses **167_745** (base 2025=100, data from 2026) because 167_744 (base 2015) ended at 2025-12; `gdp`/`unemployment` have a vintage `EDITION` dimension resolved dynamically via `edition = :latest`. The full design document lives in `IstatApi.jl-PLAN.md` — **local-only and gitignored**; read it first if it exists. Structural model: [`gragusa/FredApi.jl`](https://github.com/gragusa/FredApi.jl) (small files grouped by concern, flat API of plain functions — but note it has no tests and known bugs; copy the spirit, not the code). Ergonomics model: [`Attol8/istatapi`](https://github.com/Attol8/istatapi) (discover → inspect → filter → retrieve).
 
 ## Commands
 
@@ -40,9 +40,9 @@ Endpoint: `https://esploradati.istat.it/SDMXWS/rest` (no authentication). Key en
 |---|---|---|
 | Discovery | `get_dataflows`, `get_dataflow`, `search_dataflow` | 0 (shipped snapshot) |
 | Structure | `get_datastructure`, `get_dimensions`, `get_codelist`, `available`, `nobs`, `sdmx_key`, `sdmx_url` | 0 for dimensions; 1 for codelists/availability |
-| Data | `get_data(flow; DIMS...)` → long `DataFrame`; `read_sdmx_csv`, `to_wide`, `to_timearray` (ext) | 1 per uncached query |
-| Control | `set_cache_dir!`, `clear_cache!`, `set_rate_limit!`, `with_budget`, `offline!`/`online!`, `clear_ban!` | 0 |
-| Shortcuts | `industrial_production` (115_333), `gdp` (163_156), `consumer_prices` (167_744), `unemployment` (151_874) | 1 |
+| Data | `get_data(flow; DIMS...)` → long `DataFrame` (options `from`/`to`/`trim`, `last_n`/`first_n`, `labels`, `max_obs`); `read_sdmx_csv`, `to_wide`, `to_timearray` (ext) | 1 per uncached query (+1 sizing on a fully wildcarded key) |
+| Control | `set_cache_dir!`, `cache_dir`, `cache_index`, `clear_cache!`, `set_rate_limit!`, `rate_limit`, `requests_used`, `with_budget`, `offline!`/`online!`/`isoffline`, `clear_ban!` | 0 |
+| Shortcuts | `industrial_production` (115_333), `gdp` (163_156), `consumer_prices` (167_745), `unemployment` (151_874) | 1 |
 
 Errors: `abstract IstatError` with `OfflineError`, `BudgetExhaustedError`, `RateLimitError`, `BannedError`, `NoDataError` (points users at `available`), `RequestFailed`.
 
@@ -59,14 +59,14 @@ A key is `.`-separated with one position per dimension **in DSD order**; empty p
 - **Period-start date convention**: `2026-Q2 → 2026-04-01`, with `freq::String` carried alongside; `parse_period(s; at = :start)` with `at ∈ (:start, :last)`. `TIME_PERIOD` shapes: `2026-06`, `2026-Q2`, `2026-S1`, `2026`, `2026-06-15`.
 - **Kwarg rule**: lowercase kwargs are options (`from`, `to`, `labels`, `cache`, `force`); UPPERCASE kwargs are dimensions, validated against the DSD with `ArgumentError` on typos (catching mistakes locally instead of spending a request).
 - **Deterministic search order**: score desc, then `id` asc — tests depend on a total order.
-- `labels = true` joins labels **locally** from the cached codelist (avoids the ~3× wire cost of `;labels=both`); `:server` for the one-round-trip variant.
+- `labels = true` joins labels **locally** from the cached codelist (avoids the ~3× wire cost of `;labels=both`); `:server` for the one-round-trip variant — `read_sdmx_csv` splits the server's `"CODE: label"` cells back into `CODE` + `CODE_label` so both forms share one schema.
 - Reshapers (`to_wide`, `to_timearray`) **error if more than one `freq` is present**.
 
 ## Service gotchas (from the ondata guide, verified 2026-08)
 
-- `endPeriod` returns roughly one extra year beyond the requested bound — prefer `lastNObservations`/`firstNObservations` for exploration, or trim after parsing.
+- `endPeriod` returns roughly one extra year beyond the requested bound — `get_data` trims it locally (`trim = true`); `last_n`/`first_n` (`lastNObservations`/`firstNObservations`) are the cheap exploration tools.
 - Format negotiation is Accept-header-only; there is no `?format=` query parameter.
-- Unfiltered data queries can be enormous (HTTP 413 risk) — `get_data` should consult `nobs` on wildcarded keys and refuse above a threshold.
+- Unfiltered data queries can be enormous (HTTP 413 risk) — `get_data` sizes **fully** wildcarded keys with `nobs` and refuses above `max_obs` (partial wildcards are not sized: that would cost a request on the most common shape; bounded `last_n`/`first_n` queries skip the check).
 - `Content-Encoding: gzip` is not reliably honoured; send `Accept-Encoding: gzip` anyway and treat compression as a bonus.
 
 ## References

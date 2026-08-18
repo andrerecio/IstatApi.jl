@@ -2,8 +2,9 @@
 
 A Julia client for [ISTAT](https://www.istat.it)'s SDMX 2.1 REST API.
 
-!!! warning "Work in progress"
-    This package is under active development and is not usable yet.
+!!! note "Pre-registration"
+    Version 0.1.0 is implemented and tested but not yet in the General
+    registry — install with `Pkg.add(url = "https://github.com/andrerecio/IstatApi.jl")`.
 
 ISTAT's service allows **5 requests per minute per IP** and blocks offenders
 for 1–2 days. IstatApi.jl is designed around never wasting a request: dataset
