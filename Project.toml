@@ -1,7 +1,7 @@
 name = "IstatApi"
 uuid = "6641eb61-f292-479a-95f5-bb44775c232c"
-authors = ["Andrea Recine <andrearec123@gmail.com>"]
 version = "0.1.0"
+authors = ["Andrea Recine <andrearec123@gmail.com>"]
 
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
@@ -33,6 +33,6 @@ Preferences = "1"
 SHA = "0.7"
 Scratch = "1"
 TOML = "1"
-TimeSeries = "0.24, 0.25"
+TimeSeries = "0.24, 0.25, 0.26"
 Unicode = "1"
 julia = "1.10"
