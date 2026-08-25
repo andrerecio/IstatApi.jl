@@ -1,5 +1,3 @@
-using Sockets
-
 @testset "transport" begin
     @testset "offline mode blocks uncached fetches, before the transport" begin
         log = String[]
@@ -119,19 +117,28 @@ using Sockets
 
     @testset "retry = false actually reaches HTTP.jl" begin
         hits = Ref(0)
-        port, tcpserver = Sockets.listenany(Sockets.localhost, 49500)
-        server = HTTP.serve!(; server = tcpserver) do req
+        # `listenany` + `HTTP.port` is the one spelling of "bind a free port"
+        # that HTTP.jl 1.x and 2.x agree on; the 1.x-only `server = ` kwarg
+        # would make this test, not the package, the compat blocker.
+        server = HTTP.serve!("127.0.0.1", 49500; listenany = true, verbose = false) do req
             hits[] += 1
             return HTTP.Response(503, "unavailable")
         end
         try
+            port = HTTP.port(server)
             status, _, _ = IstatApi._http_get("http://127.0.0.1:$port/x", "text/plain")
             @test status == 503
-            # 503 is in HTTP.jl's default retryable set: with its default
-            # `retry = true` this would be 4 hits, not 1.
+            # 503 is in HTTP.jl's retryable set: on HTTP.jl 2.x the same call
+            # with the default `retry = true` hits the server 5 times.
             @test hits[] == 1
         finally
             close(server)
         end
+        # HTTP.jl 1.x does not retry a retryable *status* when
+        # `status_exception = false` (verified against 1.11: 1 hit either way),
+        # so on the version we ship the assertion above cannot fail. Read the
+        # source too, so deleting the kwarg always breaks a test.
+        transport_src = read(joinpath(pkgdir(IstatApi), "src", "transport.jl"), String)
+        @test occursin("retry = false", transport_src)
     end
 end
