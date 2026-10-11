@@ -1,5 +1,14 @@
 # Reshaping get_data results.
 
+# The dimension columns of a get_data result: everything between DATAFLOW and
+# TIME_PERIOD except the `<DIM>_label` columns. Shared with the DuckDB
+# extension, whose upsert key is DATAFLOW + these + TIME_PERIOD.
+function _dimension_columns(df::AbstractDataFrame)
+    tp = findfirst(==("TIME_PERIOD"), names(df))
+    tp === nothing && throw(ArgumentError("expected a get_data result (no TIME_PERIOD column)"))
+    return filter(c -> !endswith(c, "_label"), names(df)[2:tp-1])
+end
+
 """
     to_wide(df; by = :auto) -> DataFrame
 
@@ -35,10 +44,8 @@ function to_wide(df::AbstractDataFrame; by = :auto)
     length(freqs) <= 1 ||
         throw(ArgumentError("more than one frequency present ($(join(freqs, ", "))) " *
                             "— reshaping would silently misalign periods; filter to one freq first"))
-    tp = findfirst(==("TIME_PERIOD"), names(df))
     dimcols = if by === :auto
-        # dimension columns sit between DATAFLOW and TIME_PERIOD
-        filter(c -> !endswith(c, "_label"), names(df)[2:tp-1])
+        _dimension_columns(df)
     else
         String.(collect(by))
     end

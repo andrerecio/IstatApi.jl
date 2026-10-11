@@ -32,7 +32,7 @@ Endpoint: `https://esploradati.istat.it/SDMXWS/rest` (no authentication). Key en
 - **Cache** in a Scratch.jl scratchspace (`ENV["ISTATAPI_CACHE_DIR"]` → Preferences → `@get_scratch!`), **not** inside the package dir. Filenames are `sha256(url * "\n" * accept)` (16 hex chars + readable prefix) because `+`-joined keys can exceed 255 chars. Atomic `dest.part` → `mv` writes with a `.meta.json` sidecar. Cache hits never touch the rate limiter.
 - **Cross-process rate limiter**: 15 s minimum interval + max 4 per rolling 60 s, state in `<cache>/requests.log` guarded by `FileWatching.Pidfile.mkpidlock` plus an in-process `ReentrantLock`. It must be cross-process because the ban is per IP — a second Julia session or Pluto notebook shares the budget.
 - **Ban sentinel**, persisted across sessions: on 429 write `<cache>/banned_until` (honour `Retry-After`, else 24 h); on an *ambiguous* 403 use **1 h** (a malformed URL also 403s). Checked before every request; throws `BannedError` with no network. `clear_ban!()` is the exported escape hatch. 404/empty body → `NoDataError`, no sentinel. Never trigger a 429 deliberately, even in testing — it costs a real 1–2 day ban.
-- **TimeSeries.jl is a weakdep** (`ext/IstatApiTimeSeriesExt.jl`), with an erroring stub in core. Do not promote it to a dep. Do not depend on `SDMX.jl` (parses SDMX-JSON data messages; we use SDMX-CSV for data). Use JSON3, not JSON.jl.
+- **TimeSeries.jl is a weakdep** (`ext/IstatApiTimeSeriesExt.jl`), with an erroring stub in core. Do not promote it to a dep. **DuckDB.jl is a weakdep too** (`ext/IstatApiDuckDBExt.jl`, stubs in `src/duckdb.jl`): SQL identifiers are case-insensitive, so the derived `freq` column is stored as `period_freq` (it collides with the `FREQ` dimension) and `read_duckdb` renames it back. Do not depend on `SDMX.jl` (parses SDMX-JSON data messages; we use SDMX-CSV for data). Use JSON3, not JSON.jl.
 
 ### API surface at a glance
 
@@ -41,6 +41,7 @@ Endpoint: `https://esploradati.istat.it/SDMXWS/rest` (no authentication). Key en
 | Discovery | `get_dataflows`, `get_dataflow`, `search_dataflow` | 0 (shipped snapshot) |
 | Structure | `get_datastructure`, `get_dimensions`, `get_codelist`, `available`, `nobs`, `sdmx_key`, `sdmx_url` | 0 for dimensions; 1 for codelists/availability |
 | Data | `get_data(flow; DIMS...)` → long `DataFrame` (options `from`/`to`/`trim`, `last_n`/`first_n`, `labels`, `max_obs`); `read_sdmx_csv`, `to_wide`, `to_timearray` (ext) | 1 per uncached query (+1 sizing on a fully wildcarded key) |
+| Storage (DuckDB ext) | `to_duckdb` (`:upsert`/`:append`/`:replace`), `read_duckdb`, `catalogue_to_duckdb` | 0 |
 | Control | `set_cache_dir!`, `cache_dir`, `cache_index`, `clear_cache!`, `set_rate_limit!`, `rate_limit`, `requests_used`, `with_budget`, `offline!`/`online!`/`isoffline`, `clear_ban!` | 0 |
 | Shortcuts | `industrial_production` (115_333), `gdp` (163_156), `consumer_prices` (167_745), `unemployment` (151_874) | 1 |
 

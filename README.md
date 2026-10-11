@@ -50,7 +50,9 @@ wraps: `industrial_production()`, `gdp()`, `consumer_prices()`,
 Results are long/tidy `DataFrame`s: SDMX codes stay `String`s (`"0020"` never
 becomes `20`), absent values are `missing`, and each row carries
 `period::Date` (period start) plus `freq` alongside the verbatim
-`TIME_PERIOD`. `using TimeSeries` enables `to_timearray`.
+`TIME_PERIOD`. `using TimeSeries` enables `to_timearray`; `using DuckDB`
+enables `to_duckdb`/`read_duckdb`/`catalogue_to_duckdb` (store results and the catalogue
+in a local DuckDB database, zero requests).
 
 For a commented start-to-finish walkthrough (discover → inspect → filter →
 retrieve), run [`examples/basic_usage.jl`](examples/basic_usage.jl):

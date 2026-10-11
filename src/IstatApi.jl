@@ -41,6 +41,8 @@ export get_dataflows, get_dataflow, search_dataflow, get_dimensions
 export DataStructure, get_datastructure, get_codelist, available, nobs
 # Data and reshaping
 export get_data, to_wide, to_timearray
+# DuckDB storage (package extension; zero requests)
+export to_duckdb, read_duckdb, catalogue_to_duckdb
 # Curated shortcuts
 export industrial_production, gdp, consumer_prices, unemployment
 
@@ -57,6 +59,7 @@ include("search.jl")
 include("structure.jl")
 include("data.jl")
 include("reshape.jl")
+include("duckdb.jl")
 include("indicators.jl")
 
 function __init__()
