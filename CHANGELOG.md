@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file, following
 [Keep a Changelog](https://keepachangelog.com) and
 [semantic versioning](https://semver.org).
 
+## [Unreleased]
+
+- DuckDB storage via a DuckDB.jl package extension (weakdep, zero
+  requests): `to_duckdb(con, df; table, mode)` with `:upsert` (default,
+  keyed on dataflow + dimension codes + `TIME_PERIOD`), `:append` and
+  `:replace`; `read_duckdb(con, query)`; `catalogue_to_duckdb(con)` writes the dataflow catalogue and
+  DSD dimension lists as joinable tables.
+
 ## [0.1.0] — unreleased
 
 Initial release.

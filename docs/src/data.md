@@ -82,3 +82,32 @@ to_timearray(df)               # TimeArray via the package extension
 
 Both error if more than one `freq` is present — filter to one frequency first
 rather than silently misaligning periods.
+
+## Storing results in DuckDB
+
+With DuckDB.jl loaded, [`to_duckdb`](@ref) writes a result into a local
+database and [`catalogue_to_duckdb`](@ref) writes the dataflow catalogue and
+DSD dimension lists. Both cost **zero requests** — they only move data you
+already hold — so a database you keep appending to is a durable, queryable
+complement to the response cache.
+
+```julia
+using DuckDB
+con = DBInterface.connect(DuckDB.DB, "istat.duckdb")
+
+to_duckdb(con, industrial_production(from = "2020"))   # table istat_115_333
+to_duckdb(con, gdp())                                  # table istat_163_156
+
+read_duckdb(con, """
+    SELECT period, OBS_VALUE FROM istat_115_333
+    WHERE ECON_ACTIVITY_NACE_2007 = '0020' ORDER BY period""")
+to_wide(read_duckdb(con, "istat_115_333"))             # back to a wide table
+```
+
+The default `mode = :upsert` replaces rows with the same dataflow, dimension
+codes and `TIME_PERIOD` before inserting, so storing a refreshed query
+updates revised observations instead of duplicating them; columns new to the
+table (e.g. labels) are added. Codes stay `VARCHAR` and `missing` becomes
+`NULL`. Because SQL identifiers are case-insensitive, the derived `freq`
+column (which would collide with the `FREQ` dimension) is stored as
+`period_freq`; [`read_duckdb`](@ref) renames it back.

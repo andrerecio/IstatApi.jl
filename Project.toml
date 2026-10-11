@@ -17,15 +17,18 @@ TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Unicode = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [weakdeps]
+DuckDB = "d2f5444f-75bc-4fdf-ac35-56f514c445e1"
 TimeSeries = "9e3dc215-6440-5c97-bce1-76c03772f85e"
 
 [extensions]
+IstatApiDuckDBExt = "DuckDB"
 IstatApiTimeSeriesExt = "TimeSeries"
 
 [compat]
 CSV = "0.10"
 DataFrames = "1"
 Dates = "1"
+DuckDB = "1"
 FileWatching = "1"
 HTTP = "1"
 JSON3 = "1"
