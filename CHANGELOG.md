@@ -11,6 +11,9 @@ All notable changes to this project are documented in this file, following
   keyed on dataflow + dimension codes + `TIME_PERIOD`), `:append` and
   `:replace`; `read_duckdb(con, query)`; `catalogue_to_duckdb(con)` writes the dataflow catalogue and
   DSD dimension lists as joinable tables.
+- Compat: allow DuckDB.jl 2 (`DuckDB = "1, 2"`) and the SHA 1 standard
+  library (`SHA = "0.7, 1"`, which silences Pkg's "ignoring incompatible
+  compat entry" warning on current Julia).
 
 ## [0.1.0] — unreleased
 
