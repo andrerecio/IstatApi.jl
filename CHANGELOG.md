@@ -4,17 +4,6 @@ All notable changes to this project are documented in this file, following
 [Keep a Changelog](https://keepachangelog.com) and
 [semantic versioning](https://semver.org).
 
-## [Unreleased]
-
-- DuckDB storage via a DuckDB.jl package extension (weakdep, zero
-  requests): `to_duckdb(con, df; table, mode)` with `:upsert` (default,
-  keyed on dataflow + dimension codes + `TIME_PERIOD`), `:append` and
-  `:replace`; `read_duckdb(con, query)`; `catalogue_to_duckdb(con)` writes the dataflow catalogue and
-  DSD dimension lists as joinable tables.
-- Compat: allow DuckDB.jl 2 (`DuckDB = "1, 2"`) and the SHA 1 standard
-  library (`SHA = "0.7, 1"`, which silences Pkg's "ignoring incompatible
-  compat entry" warning on current Julia).
-
 ## [0.1.0] — unreleased
 
 Initial release.
@@ -34,6 +23,11 @@ Initial release.
   (`labels = true`) or requested from the server (`labels = :server`), both
   yielding the same `<DIM>_label` schema; `read_sdmx_csv`; `to_wide`;
   `to_timearray` via a TimeSeries.jl extension.
+- Storage: a DuckDB.jl extension (weakdep, DuckDB.jl 1 and 2, zero
+  requests) — `to_duckdb(con, df; table, mode)` with `:upsert` (default,
+  keyed on dataflow + dimension codes + `TIME_PERIOD`), `:append` and
+  `:replace`; `read_duckdb(con, query)`; `catalogue_to_duckdb(con)` writes
+  the dataflow catalogue and DSD dimension lists as joinable tables.
 - Safety under ISTAT's 5 requests/minute limit: persistent response cache,
   cross-process rate limiter, persisted ban sentinel, request budgets
   (`with_budget`), offline mode.
